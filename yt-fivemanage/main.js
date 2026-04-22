@@ -186,6 +186,45 @@ ipcMain.handle('download', (event, { url, quality, outputDir, ytdlpPath }) => {
   })
 })
 
+// ── Trim (ffmpeg) ──────────────────────────────────────────────────────────────
+// ffmpegPath is the bundled binary from ffmpeg-static — no user install needed.
+// We write to a temp file first, then overwrite the original on success.
+ipcMain.handle('trim', (event, { filePath, startTime, endTime }) => {
+  return new Promise((resolve, reject) => {
+    const dir     = path.dirname(filePath)
+    const ext     = path.extname(filePath)
+    const base    = path.basename(filePath, ext)
+    const tmpPath = path.join(dir, `${base}_trimming${ext}`)
+
+    // -ss before -i = fast seek (keyframe); -c copy = no re-encode = instant
+    const args = ['-y', '-ss', startTime, '-i', filePath]
+    if (endTime && endTime.trim()) args.push('-to', endTime)
+    args.push('-c', 'copy', tmpPath)
+
+    event.sender.send('dl-log', `✂  ffmpeg ${args.join(' ')}`)
+
+    const proc = spawn(ffmpegPath, args, { stdio: ['ignore', 'pipe', 'pipe'] })
+
+    proc.stderr.on('data', chunk => {
+      for (const line of chunk.toString().split('\n')) {
+        if (line.trim()) event.sender.send('dl-log', line)
+      }
+    })
+
+    proc.on('error', reject)
+    proc.on('close', code => {
+      if (code === 0) {
+        try { fs.unlinkSync(filePath) }   catch {}
+        fs.renameSync(tmpPath, filePath)
+        resolve(filePath)
+      } else {
+        try { fs.unlinkSync(tmpPath) } catch {}
+        reject(new Error(`ffmpeg exited with code ${code}`))
+      }
+    })
+  })
+})
+
 // ── Upload ─────────────────────────────────────────────────────────────────────
 ipcMain.handle('upload', async (event, { filePath, apiKey }) => {
   const ext       = path.extname(filePath).toLowerCase()

@@ -17,6 +17,10 @@ const rememberKeyEl  = $('remember-key')
 const ytUrlEl        = $('yt-url')
 const qualityEl      = $('quality')
 const dirLabelEl     = $('dir-label')
+const trimEnableEl   = $('trim-enable')
+const trimRow        = $('trim-row')
+const trimStartEl    = $('trim-start')
+const trimEndEl      = $('trim-end')
 const uploadOnlyEl   = $('upload-only')
 const uploadOnlyRow  = $('upload-only-row')
 const pickedFileEl   = $('picked-file-label')
@@ -111,6 +115,10 @@ $('link-fivemanage').addEventListener('click', e => {
 $('clear-url').addEventListener('click', () => { ytUrlEl.value = ''; ytUrlEl.focus() })
 $('clear-log').addEventListener('click', () => { logBox.innerHTML = '' })
 
+trimEnableEl.addEventListener('change', () => {
+  trimRow.style.display = trimEnableEl.checked ? 'flex' : 'none'
+})
+
 $('browse-dir').addEventListener('click', async () => {
   const dir = await window.api.pickDir()
   if (dir) {
@@ -199,6 +207,12 @@ async function run() {
 
     if (window._cancelRequested) { log('✕  Cancelled.', 'error'); return }
 
+    // Trim before upload (or before showing done toast)
+    if (trimEnableEl.checked) {
+      filePath = await doTrim(filePath)
+      if (!filePath) return
+    }
+
     if (mode === 'upload') {
       const url = await doUpload(filePath)
       if (url) showToast(url)
@@ -249,6 +263,29 @@ async function doDownload() {
     return filePath
   } catch (err) {
     log(`❌  Download failed: ${err.message}`, 'error')
+    return null
+  }
+}
+
+// ── Trim ───────────────────────────────────────────────────────────────────────
+async function doTrim(filePath) {
+  const start = trimStartEl.value.trim()
+  const end   = trimEndEl.value.trim()
+
+  if (!start) {
+    log('⚠  Trim enabled but no start time set — skipping trim.', 'warning')
+    return filePath
+  }
+
+  log(`✂  Trimming: start=${start}${end ? '  end=' + end : ''}`, 'accent')
+  log('   Using ffmpeg -c copy (instant, no re-encode)…')
+
+  try {
+    const out = await window.api.trim({ filePath, startTime: start, endTime: end || null })
+    log(`✅  Trim done: ${baseName(out)}`, 'success')
+    return out
+  } catch (err) {
+    log(`❌  Trim failed: ${err.message}`, 'error')
     return null
   }
 }

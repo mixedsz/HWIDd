@@ -108,6 +108,24 @@
         <div class="divider"></div>
 
         <label class="checkbox-row">
+          <input type="checkbox" id="trim-enable" />
+          <span class="checkmark"></span>
+          <span>Trim video after download</span>
+        </label>
+        <div class="trim-row" id="trim-row" style="display:none">
+          <div class="trim-field">
+            <label class="opt-label">Skip intro (start at)</label>
+            <input id="trim-start" type="text" class="input trim-input" placeholder="0:20" />
+          </div>
+          <span class="trim-arrow">→</span>
+          <div class="trim-field">
+            <label class="opt-label">Stop at (optional)</label>
+            <input id="trim-end" type="text" class="input trim-input" placeholder="3:45" />
+          </div>
+        </div>
+        <div class="divider"></div>
+
+        <label class="checkbox-row">
           <input type="checkbox" id="upload-only" />
           <span class="checkmark"></span>
           <span>Upload an existing file instead of downloading</span>

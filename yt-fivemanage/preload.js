@@ -20,6 +20,9 @@ contextBridge.exposeInMainWorld('api', {
   ensureYtdlp: () => ipcRenderer.invoke('ensure-ytdlp'),
   download: (opts) => ipcRenderer.invoke('download', opts),
 
+  // Trim
+  trim: (opts) => ipcRenderer.invoke('trim', opts),
+
   // Upload
   upload: (opts) => ipcRenderer.invoke('upload', opts),
 

@@ -309,6 +309,22 @@ body {
   margin: 2px 0;
 }
 
+/* ── Trim ───────────────────────────────────────────────────────────────────── */
+.trim-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 2px 0 4px;
+}
+.trim-field { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.trim-input { height: 34px; font-size: 13px; text-align: center; }
+.trim-arrow {
+  color: var(--sub);
+  font-size: 16px;
+  padding-bottom: 6px;
+  flex-shrink: 0;
+}
+
 .upload-only-row {
   display: flex;
   align-items: center;
