@@ -11,7 +11,7 @@
 <body>
 
   <!-- ── Title bar ──────────────────────────────────────────────────────────── -->
-  <div class="titlebar" id="titlebar">
+  <div class="titlebar">
     <div class="titlebar-left">
       <span class="titlebar-icon">▶</span>
       <span class="titlebar-title">YT <span class="dim">→</span> FiveManage</span>
@@ -23,13 +23,25 @@
     </div>
   </div>
 
+  <!-- ── Mode tabs ──────────────────────────────────────────────────────────── -->
+  <div class="mode-bar">
+    <button class="mode-tab active" id="tab-dl" data-mode="download">
+      <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+      Download MP4
+    </button>
+    <button class="mode-tab" id="tab-ul" data-mode="upload">
+      <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
+      Download + Upload to FiveManage
+    </button>
+  </div>
+
   <!-- ── Main layout ────────────────────────────────────────────────────────── -->
   <div class="layout">
 
     <!-- ── Left panel ───────────────────────────────────────────────────────── -->
     <div class="panel left-panel">
 
-      <!-- API key -->
+      <!-- API key (hidden in download-only mode) -->
       <section class="card" id="card-api">
         <div class="card-header">
           <span class="badge" style="background:#5865F2">API</span>
@@ -51,7 +63,7 @@
       </section>
 
       <!-- URL -->
-      <section class="card" id="card-url">
+      <section class="card">
         <div class="card-header">
           <span class="badge" style="background:#FF0000">YT</span>
           <span class="card-title">YouTube URL</span>
@@ -98,7 +110,7 @@
         <label class="checkbox-row">
           <input type="checkbox" id="upload-only" />
           <span class="checkmark"></span>
-          <span>Upload an existing file instead</span>
+          <span>Upload an existing file instead of downloading</span>
         </label>
         <div class="upload-only-row" id="upload-only-row" style="display:none">
           <button class="small-btn" id="pick-file">Pick file…</button>
@@ -106,10 +118,10 @@
         </div>
       </section>
 
-      <!-- Go button -->
+      <!-- Action button -->
       <button class="go-btn" id="go-btn">
         <svg viewBox="0 0 24 24" class="go-icon"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-        Download &amp; Upload to FiveManage
+        <span id="go-btn-label">Download MP4</span>
       </button>
       <button class="cancel-btn" id="cancel-btn" disabled>Cancel</button>
 
@@ -120,14 +132,14 @@
           <div class="progress-track"><div class="progress-fill" id="dl-fill"></div></div>
           <span class="progress-pct" id="dl-pct">0%</span>
         </div>
-        <div class="progress-row">
+        <div class="progress-row" id="up-row">
           <span class="progress-label">Upload</span>
           <div class="progress-track"><div class="progress-fill upload" id="up-fill"></div></div>
           <span class="progress-pct" id="up-pct">0%</span>
         </div>
       </div>
 
-    </div><!-- /left-panel -->
+    </div>
 
     <!-- ── Right panel (log) ─────────────────────────────────────────────────── -->
     <div class="panel right-panel">
@@ -138,16 +150,16 @@
       <div class="log-box" id="log-box"></div>
     </div>
 
-  </div><!-- /layout -->
+  </div>
 
-  <!-- ── Result toast ────────────────────────────────────────────────────────── -->
+  <!-- ── Toast ──────────────────────────────────────────────────────────────── -->
   <div class="toast" id="toast" style="display:none">
-    <div class="toast-icon">✅</div>
+    <div class="toast-icon" id="toast-icon">✅</div>
     <div class="toast-body">
-      <div class="toast-title">Upload complete!</div>
+      <div class="toast-title" id="toast-title">Done!</div>
       <a class="toast-url" id="toast-url" href="#"></a>
     </div>
-    <button class="toast-copy" id="toast-copy">Copy URL</button>
+    <button class="toast-copy" id="toast-copy" style="display:none">Copy URL</button>
     <button class="toast-close" id="toast-close">✕</button>
   </div>
 

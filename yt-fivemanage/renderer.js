@@ -1,131 +1,140 @@
 'use strict'
 
 // ── State ──────────────────────────────────────────────────────────────────────
-let cfg          = {}
-let outputDir    = ''
-let ytdlpPath    = null
-let isBusy       = false
-let cancelFlag   = false
-let pickedFile   = null
+let cfg        = {}
+let outputDir  = ''
+let ytdlpPath  = null
+let mode       = 'download'   // 'download' | 'upload'
+let pickedFile = null
 
 // ── DOM refs ───────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id)
 
-const apiKeyEl      = $('api-key')
-const toggleKeyBtn  = $('toggle-key')
-const rememberKeyEl = $('remember-key')
-const ytUrlEl       = $('yt-url')
-const clearUrlBtn   = $('clear-url')
-const qualityEl     = $('quality')
-const dirLabelEl    = $('dir-label')
-const browseDirBtn  = $('browse-dir')
-const uploadOnlyEl  = $('upload-only')
-const uploadOnlyRow = $('upload-only-row')
-const pickFileBtn   = $('pick-file')
-const pickedFileEl  = $('picked-file-label')
-const goBtn         = $('go-btn')
-const cancelBtn     = $('cancel-btn')
-const dlFill        = $('dl-fill')
-const dlPct         = $('dl-pct')
-const upFill        = $('up-fill')
-const upPct         = $('up-pct')
-const logBox        = $('log-box')
-const clearLogBtn   = $('clear-log')
-const toast         = $('toast')
-const toastUrl      = $('toast-url')
-const toastCopy     = $('toast-copy')
-const toastClose    = $('toast-close')
-const linkFivemanage = $('link-fivemanage')
+const apiKeyEl       = $('api-key')
+const cardApi        = $('card-api')
+const toggleKeyBtn   = $('toggle-key')
+const rememberKeyEl  = $('remember-key')
+const ytUrlEl        = $('yt-url')
+const qualityEl      = $('quality')
+const dirLabelEl     = $('dir-label')
+const uploadOnlyEl   = $('upload-only')
+const uploadOnlyRow  = $('upload-only-row')
+const pickedFileEl   = $('picked-file-label')
+const goBtn          = $('go-btn')
+const goBtnLabel     = $('go-btn-label')
+const cancelBtn      = $('cancel-btn')
+const dlFill         = $('dl-fill')
+const dlPct          = $('dl-pct')
+const upRow          = $('up-row')
+const upFill         = $('up-fill')
+const upPct          = $('up-pct')
+const logBox         = $('log-box')
+const toast          = $('toast')
+const toastTitle     = $('toast-title')
+const toastIcon      = $('toast-icon')
+const toastUrl       = $('toast-url')
+const toastCopy      = $('toast-copy')
 
 // ── Init ───────────────────────────────────────────────────────────────────────
 async function init() {
   cfg = await window.api.loadConfig()
 
-  if (cfg.apiKey)      apiKeyEl.value = cfg.apiKey
+  if (cfg.apiKey)      apiKeyEl.value       = cfg.apiKey
   if (cfg.rememberKey) rememberKeyEl.checked = true
-  if (cfg.quality)     qualityEl.value = cfg.quality
+  if (cfg.quality)     qualityEl.value       = cfg.quality
+  if (cfg.mode)        setMode(cfg.mode)
 
-  // Build default Downloads path using the real home dir from main process.
-  // Never use require() here — it doesn't exist in a contextIsolated renderer.
-  const homeDir     = await window.api.getHomeDir()
-  const defaultDir  = homeDir + (process.platform === 'win32' ? '\\Downloads' : '/Downloads')
+  const homeDir    = await window.api.getHomeDir()
+  const sep        = homeDir.includes('\\') ? '\\' : '/'
+  const defaultDir = homeDir + sep + 'Downloads'
 
-  if (cfg.outputDir) {
-    outputDir = cfg.outputDir
-  } else {
-    outputDir = defaultDir
-  }
+  outputDir = cfg.outputDir || defaultDir
   dirLabelEl.textContent = shortPath(outputDir)
   dirLabelEl.title       = outputDir
 
-  log('Ready. Paste a YouTube URL and your FiveManage API key, then click Download & Upload.', 'accent')
+  log('Ready — paste a YouTube URL and click the button below.', 'accent')
 }
 
 init()
 
-// ── IPC listeners ──────────────────────────────────────────────────────────────
+// ── IPC progress/log callbacks ─────────────────────────────────────────────────
 window.api.onDlProgress(pct => setProgress(dlFill, dlPct, pct))
 window.api.onUpProgress(pct => setProgress(upFill, upPct, pct))
 window.api.onDlLog(line => {
   if (!line.trim()) return
-  // Colour known prefixes
-  const isErr = /error|failed|warning/i.test(line)
-  log(line, isErr ? 'error' : undefined)
+  const t = /error|failed/i.test(line) ? 'error' : /warning/i.test(line) ? 'warning' : null
+  log(line, t)
 })
 
-// ── Titlebar ───────────────────────────────────────────────────────────────────
+// ── Mode tabs ──────────────────────────────────────────────────────────────────
+document.querySelectorAll('.mode-tab').forEach(btn => {
+  btn.addEventListener('click', () => setMode(btn.dataset.mode))
+})
+
+function setMode(m) {
+  mode = m
+  document.querySelectorAll('.mode-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === m)
+  })
+
+  const isUpload = m === 'upload'
+  cardApi.style.display  = isUpload ? '' : 'none'
+  upRow.style.display    = isUpload ? '' : 'none'
+  goBtnLabel.textContent = isUpload ? 'Download & Upload to FiveManage' : 'Download MP4'
+
+  // Reset upload-only when switching modes
+  uploadOnlyEl.checked         = false
+  uploadOnlyRow.style.display  = 'none'
+  ytUrlEl.disabled             = false
+  qualityEl.disabled           = false
+  pickedFile                   = null
+  pickedFileEl.textContent     = 'No file selected'
+}
+
+// ── Window controls ────────────────────────────────────────────────────────────
 $('btn-min').addEventListener('click', () => window.api.minimize())
 $('btn-max').addEventListener('click', () => window.api.maximize())
 $('btn-cls').addEventListener('click', () => window.api.close())
 
-// ── Key visibility ─────────────────────────────────────────────────────────────
+// ── Misc controls ──────────────────────────────────────────────────────────────
 toggleKeyBtn.addEventListener('click', () => {
-  const isHidden = apiKeyEl.type === 'password'
-  apiKeyEl.type = isHidden ? 'text' : 'password'
-  toggleKeyBtn.querySelector('svg').style.opacity = isHidden ? '1' : '.4'
+  const hidden = apiKeyEl.type === 'password'
+  apiKeyEl.type = hidden ? 'text' : 'password'
+  toggleKeyBtn.querySelector('svg').style.opacity = hidden ? '1' : '.4'
 })
 
-// ── FiveManage link ────────────────────────────────────────────────────────────
-linkFivemanage.addEventListener('click', e => {
+$('link-fivemanage').addEventListener('click', e => {
   e.preventDefault()
   window.api.openUrl('https://fivemanage.com/dashboard')
 })
 
-// ── Clear URL ──────────────────────────────────────────────────────────────────
-clearUrlBtn.addEventListener('click', () => { ytUrlEl.value = ''; ytUrlEl.focus() })
+$('clear-url').addEventListener('click', () => { ytUrlEl.value = ''; ytUrlEl.focus() })
+$('clear-log').addEventListener('click', () => { logBox.innerHTML = '' })
 
-// ── Browse dir ─────────────────────────────────────────────────────────────────
-browseDirBtn.addEventListener('click', async () => {
+$('browse-dir').addEventListener('click', async () => {
   const dir = await window.api.pickDir()
   if (dir) {
     outputDir = dir
     dirLabelEl.textContent = shortPath(dir)
-    dirLabelEl.title = dir
+    dirLabelEl.title       = dir
   }
 })
 
-// ── Upload-only toggle ─────────────────────────────────────────────────────────
 uploadOnlyEl.addEventListener('change', () => {
   const on = uploadOnlyEl.checked
   uploadOnlyRow.style.display = on ? 'flex' : 'none'
-  ytUrlEl.disabled = on
+  ytUrlEl.disabled   = on
   qualityEl.disabled = on
   if (!on) { pickedFile = null; pickedFileEl.textContent = 'No file selected' }
 })
 
-pickFileBtn.addEventListener('click', async () => {
+$('pick-file').addEventListener('click', async () => {
   const f = await window.api.pickFile()
-  if (f) {
-    pickedFile = f
-    pickedFileEl.textContent = baseName(f)
-  }
+  if (f) { pickedFile = f; pickedFileEl.textContent = baseName(f) }
 })
 
-// ── Clear log ──────────────────────────────────────────────────────────────────
-clearLogBtn.addEventListener('click', () => { logBox.innerHTML = '' })
-
 // ── Toast ──────────────────────────────────────────────────────────────────────
-toastClose.addEventListener('click', () => { toast.style.display = 'none' })
+$('toast-close').addEventListener('click', () => { toast.style.display = 'none' })
 toastCopy.addEventListener('click', () => {
   navigator.clipboard.writeText(toastUrl.href).then(() => {
     toastCopy.textContent = 'Copied!'
@@ -133,31 +142,36 @@ toastCopy.addEventListener('click', () => {
   })
 })
 
-// ── Go ─────────────────────────────────────────────────────────────────────────
-goBtn.addEventListener('click', start)
-cancelBtn.addEventListener('click', () => {
-  cancelFlag = true
-  log('⚠  Cancel requested — will stop after current operation…', 'warning')
+// ── Main action ────────────────────────────────────────────────────────────────
+$('go-btn').addEventListener('click', run)
+$('cancel-btn').addEventListener('click', () => {
+  log('⚠  Cancel requested — stopping after current step…', 'warning')
+  // Mark for cancel — the process will be killed in the next tick
+  window._cancelRequested = true
 })
 
-async function start() {
-  const apiKey = apiKeyEl.value.trim()
-  if (!apiKey) { alert('Please enter your FiveManage API key.'); return }
+async function run() {
+  // Validate
+  if (mode === 'upload') {
+    const apiKey = apiKeyEl.value.trim()
+    if (!apiKey) { alert('Please enter your FiveManage API key.'); return }
+  }
 
   if (uploadOnlyEl.checked) {
     if (!pickedFile) { alert('Please pick a file to upload.'); return }
   } else {
     const url = ytUrlEl.value.trim()
-    if (!url) { alert('Please enter a YouTube URL.'); return }
-    if (!isValidUrl(url)) { alert('That doesn\'t look like a valid URL.'); return }
+    if (!url)         { alert('Please enter a YouTube URL.'); return }
+    if (!isValidUrl(url)) { alert("That doesn't look like a valid URL."); return }
   }
 
-  // Persist config
-  cfg.quality    = qualityEl.value
-  cfg.outputDir  = outputDir || undefined
+  // Save prefs
+  cfg.mode      = mode
+  cfg.quality   = qualityEl.value
+  cfg.outputDir = outputDir
   if (rememberKeyEl.checked) {
-    cfg.apiKey        = apiKey
-    cfg.rememberKey   = true
+    cfg.apiKey = apiKeyEl.value.trim()
+    cfg.rememberKey = true
   } else {
     delete cfg.apiKey
     delete cfg.rememberKey
@@ -165,7 +179,7 @@ async function start() {
   await window.api.saveConfig(cfg)
 
   setBusy(true)
-  cancelFlag = false
+  window._cancelRequested = false
   setProgress(dlFill, dlPct, 0)
   setProgress(upFill, upPct, 0)
   logBox.innerHTML = ''
@@ -179,122 +193,128 @@ async function start() {
       log(`📂  Using file: ${baseName(filePath)}`, 'accent')
       setProgress(dlFill, dlPct, 100)
     } else {
-      filePath = await doDownload(apiKey)
+      filePath = await doDownload()
       if (!filePath) return
     }
 
-    if (cancelFlag) { log('✕  Cancelled.', 'error'); return }
+    if (window._cancelRequested) { log('✕  Cancelled.', 'error'); return }
 
-    const resultUrl = await doUpload(filePath, apiKey)
-    if (resultUrl) showSuccess(resultUrl)
+    if (mode === 'upload') {
+      const url = await doUpload(filePath)
+      if (url) showToast(url)
+    } else {
+      showToastDownloadDone(filePath)
+    }
 
   } catch (err) {
-    log(`❌  Unexpected error: ${err.message || err}`, 'error')
+    log(`❌  ${err.message || err}`, 'error')
   } finally {
     setBusy(false)
   }
 }
 
-// ── Download flow ──────────────────────────────────────────────────────────────
-async function doDownload(apiKey) {
+// ── Download ───────────────────────────────────────────────────────────────────
+async function doDownload() {
   const url = ytUrlEl.value.trim()
+  log(`📥  Starting download: ${url}`, 'accent')
+  log(`⚙   Quality: ${qualityEl.value}  →  ${outputDir}`)
 
-  log(`🔍  Fetching video info…`, 'accent')
-
-  // Ensure yt-dlp binary exists
   if (!ytdlpPath) {
-    log('⚙  Downloading yt-dlp binary (first run only)…', 'warning')
-    goBtn.innerHTML = '<span class="spinner"></span>Preparing yt-dlp…'
+    log('⚙  Fetching yt-dlp binary (first run only)…', 'warning')
+    goBtn.querySelector('#go-btn-label').textContent = 'Preparing…'
     try {
       ytdlpPath = await window.api.ensureYtdlp()
-      log(`✅  yt-dlp ready.`, 'success')
+      log('✅  yt-dlp ready.', 'success')
     } catch (e) {
-      log(`❌  Failed to get yt-dlp: ${e.message}`, 'error')
+      log(`❌  Could not download yt-dlp: ${e.message}`, 'error')
       return null
     }
-    goBtn.innerHTML = `<svg viewBox="0 0 24 24" class="go-icon"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>Download &amp; Upload to FiveManage`
+    goBtnLabel.textContent = mode === 'upload'
+      ? 'Download & Upload to FiveManage'
+      : 'Download MP4'
   }
 
-  if (cancelFlag) return null
-
-  log(`📥  Downloading: ${url}`)
-  log(`⚙   Quality: ${qualityEl.value}`)
+  if (window._cancelRequested) return null
 
   try {
     const filePath = await window.api.download({
       url,
       quality:   qualityEl.value,
-      outputDir,   // always populated from init()
+      outputDir,
       ytdlpPath,
     })
-
-    if (!filePath) {
-      log('❌  Download failed — see log above.', 'error')
-      return null
-    }
 
     setProgress(dlFill, dlPct, 100)
     log(`✅  Download complete: ${baseName(filePath)}`, 'success')
     return filePath
   } catch (err) {
-    log(`❌  Download error: ${err.message || err}`, 'error')
+    log(`❌  Download failed: ${err.message}`, 'error')
     return null
   }
 }
 
-// ── Upload flow ────────────────────────────────────────────────────────────────
-async function doUpload(filePath, apiKey) {
-  log(`📤  Uploading to FiveManage…`, 'accent')
-
+// ── Upload ─────────────────────────────────────────────────────────────────────
+async function doUpload(filePath) {
+  log(`📤  Uploading ${baseName(filePath)} to FiveManage…`, 'accent')
   try {
-    const resultUrl = await window.api.upload({ filePath, apiKey })
+    const url = await window.api.upload({ filePath, apiKey: apiKeyEl.value.trim() })
     setProgress(upFill, upPct, 100)
     log(`🎉  Upload complete!`, 'success')
-    log(`🔗  ${resultUrl}`, 'success')
-    return resultUrl
+    log(`🔗  ${url}`, 'success')
+    return url
   } catch (err) {
-    const msg = err?.response?.data
-      ? JSON.stringify(err.response.data)
-      : (err.message || String(err))
+    const msg = err?.message || String(err)
     log(`❌  Upload failed: ${msg}`, 'error')
+    if (msg.includes('401') || msg.includes('403')) {
+      log('    → Check your FiveManage API key and its permissions.', 'warning')
+    }
     return null
   }
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function log(text, type) {
-  const line = document.createElement('span')
-  line.className = 'log-line' + (type ? ` ${type}` : '')
-  line.textContent = text
-  logBox.appendChild(line)
+  const el = document.createElement('span')
+  el.className = 'log-line' + (type ? ` ${type}` : '')
+  el.textContent = text
+  logBox.appendChild(el)
   logBox.scrollTop = logBox.scrollHeight
 }
 
 function setProgress(fill, label, pct) {
-  fill.style.width = `${Math.min(pct, 100)}%`
-  label.textContent = `${Math.round(pct)}%`
+  fill.style.width    = `${Math.min(pct, 100)}%`
+  label.textContent   = `${Math.round(pct)}%`
 }
 
 function setBusy(on) {
-  isBusy = on
-  goBtn.disabled    = on
+  goBtn.disabled     = on
   cancelBtn.disabled = !on
-  if (!on) {
-    goBtn.innerHTML = `<svg viewBox="0 0 24 24" class="go-icon"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>Download &amp; Upload to FiveManage`
-  }
 }
 
-function showSuccess(url) {
-  toastUrl.href        = url
-  toastUrl.textContent = url
-  toast.style.display  = 'flex'
+function showToast(url) {
+  toastIcon.textContent        = '✅'
+  toastTitle.textContent       = 'Uploaded to FiveManage!'
+  toastUrl.href                = url
+  toastUrl.textContent         = url
+  toastCopy.style.display      = ''
+  toast.style.display          = 'flex'
+}
+
+function showToastDownloadDone(filePath) {
+  toastIcon.textContent        = '📁'
+  toastTitle.textContent       = `Saved: ${baseName(filePath)}`
+  toastUrl.href                = '#'
+  toastUrl.textContent         = outputDir
+  toastCopy.style.display      = 'none'
+  toast.style.display          = 'flex'
 }
 
 function shortPath(p) {
-  const home = p.startsWith('/home/') || p.startsWith('C:\\Users\\')
+  const sep  = p.includes('\\') ? '\\' : '/'
+  const home = p.startsWith('/home/') || p.match(/^[A-Z]:\\Users\\/i)
   if (!home) return p
   const parts = p.split(/[/\\]/)
-  return '~/' + parts.slice(3).join('/')
+  return '~' + sep + parts.slice(3).join(sep)
 }
 
 function baseName(p) {

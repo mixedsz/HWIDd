@@ -76,6 +76,39 @@ html, body {
 .wb:hover { background: rgba(255,255,255,.08); color: var(--text); }
 .wb-cls:hover { background: var(--danger) !important; color: #fff !important; }
 
+/* ── Mode tabs ──────────────────────────────────────────────────────────────── */
+.mode-bar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 14px 0;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+.mode-tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 18px;
+  border: 1.5px solid var(--border);
+  border-radius: 9px 9px 0 0;
+  background: var(--mid);
+  color: var(--sub);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.mode-tab svg { width: 15px; height: 15px; fill: currentColor; flex-shrink: 0; }
+.mode-tab:hover { color: var(--text); border-color: var(--accent); }
+.mode-tab.active {
+  color: var(--text);
+  background: var(--card);
+  border-color: var(--accent);
+  border-bottom-color: var(--card);
+  margin-bottom: -1px;
+  z-index: 1;
+}
+
 /* ── Layout ─────────────────────────────────────────────────────────────────── */
 body {
   display: flex;
