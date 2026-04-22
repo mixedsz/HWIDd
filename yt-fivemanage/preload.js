@@ -11,9 +11,10 @@ contextBridge.exposeInMainWorld('api', {
   saveConfig: (data) => ipcRenderer.invoke('save-config', data),
 
   // Dialogs / shell
-  openUrl:  (url)  => ipcRenderer.invoke('open-url', url),
-  pickDir:  ()     => ipcRenderer.invoke('pick-dir'),
-  pickFile: ()     => ipcRenderer.invoke('pick-file'),
+  openUrl:    (url) => ipcRenderer.invoke('open-url', url),
+  pickDir:    ()    => ipcRenderer.invoke('pick-dir'),
+  pickFile:   ()    => ipcRenderer.invoke('pick-file'),
+  getHomeDir: ()    => ipcRenderer.invoke('get-home-dir'),
 
   // yt-dlp
   ensureYtdlp: () => ipcRenderer.invoke('ensure-ytdlp'),

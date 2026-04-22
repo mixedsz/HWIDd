@@ -41,16 +41,22 @@ const linkFivemanage = $('link-fivemanage')
 async function init() {
   cfg = await window.api.loadConfig()
 
-  if (cfg.apiKey)    apiKeyEl.value = cfg.apiKey
+  if (cfg.apiKey)      apiKeyEl.value = cfg.apiKey
   if (cfg.rememberKey) rememberKeyEl.checked = true
-  if (cfg.quality)   qualityEl.value = cfg.quality
+  if (cfg.quality)     qualityEl.value = cfg.quality
+
+  // Build default Downloads path using the real home dir from main process.
+  // Never use require() here — it doesn't exist in a contextIsolated renderer.
+  const homeDir     = await window.api.getHomeDir()
+  const defaultDir  = homeDir + (process.platform === 'win32' ? '\\Downloads' : '/Downloads')
+
   if (cfg.outputDir) {
     outputDir = cfg.outputDir
-    dirLabelEl.textContent = shortPath(outputDir)
-    dirLabelEl.title = outputDir
   } else {
-    outputDir = ''
+    outputDir = defaultDir
   }
+  dirLabelEl.textContent = shortPath(outputDir)
+  dirLabelEl.title       = outputDir
 
   log('Ready. Paste a YouTube URL and your FiveManage API key, then click Download & Upload.', 'accent')
 }
@@ -214,15 +220,11 @@ async function doDownload(apiKey) {
   log(`📥  Downloading: ${url}`)
   log(`⚙   Quality: ${qualityEl.value}`)
 
-  const dir = outputDir || (typeof require !== 'undefined'
-    ? require('os').homedir() + '/Downloads'
-    : '')
-
   try {
     const filePath = await window.api.download({
       url,
       quality:   qualityEl.value,
-      outputDir: dir,
+      outputDir,   // always populated from init()
       ytdlpPath,
     })
 

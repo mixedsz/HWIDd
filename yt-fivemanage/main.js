@@ -54,6 +54,7 @@ ipcMain.on('win-close',    () => win.close())
 // ── IPC: config ────────────────────────────────────────────────────────────────
 ipcMain.handle('load-config', () => loadConfig())
 ipcMain.handle('save-config', (_, data) => { saveConfig(data); return true })
+ipcMain.handle('get-home-dir', () => os.homedir())
 
 // ── IPC: open URL in browser ───────────────────────────────────────────────────
 ipcMain.handle('open-url', (_, url) => { shell.openExternal(url); return true })
@@ -103,7 +104,16 @@ ipcMain.handle('download', async (event, { url, quality, outputDir, ytdlpPath })
   }
 
   const fmt = qualityMap[quality] || qualityMap['1080p']
-  const outTemplate = path.join(outputDir, '%(title)s.%(ext)s')
+
+  // Always resolve to a real directory — never let an empty string reach yt-dlp
+  const effectiveDir = (outputDir && outputDir.trim())
+    ? outputDir
+    : path.join(os.homedir(), 'Downloads')
+
+  fs.mkdirSync(effectiveDir, { recursive: true })
+
+  const outTemplate = path.join(effectiveDir, '%(title)s.%(ext)s')
+  const videoExts   = new Set(['.mp4','.mkv','.webm','.avi','.mov','.m4a','.mp3','.aac','.ogg'])
 
   return new Promise((resolve, reject) => {
     let downloadedFile = null
@@ -131,28 +141,40 @@ ipcMain.handle('download', async (event, { url, quality, outputDir, ytdlpPath })
           }
         }
       }
-      if (eventType === 'download' && eventData.includes('Destination:')) {
-        downloadedFile = eventData.split('Destination:')[1]?.trim()
+
+      // Capture destination from multiple possible log line formats
+      if (eventData.includes('Destination:')) {
+        const dest = eventData.split('Destination:')[1]?.trim()
+        if (dest) downloadedFile = dest
       }
+      // Merger outputs the final merged file path
+      if (eventType === 'Merger' && eventData.includes('into "')) {
+        const m = eventData.match(/into "([^"]+)"/)
+        if (m) downloadedFile = m[1]
+      }
+
       if (eventData) event.sender.send('dl-log', eventData)
     })
 
     proc.on('error', reject)
 
     proc.on('close', () => {
-      // Resolve to the mp4 path
+      // Prefer the captured destination, trying the .mp4 version first (post-merge)
       if (downloadedFile) {
         const mp4 = downloadedFile.replace(/\.[^.]+$/, '.mp4')
         if (fs.existsSync(mp4)) { resolve(mp4); return }
         if (fs.existsSync(downloadedFile)) { resolve(downloadedFile); return }
       }
-      // Fallback: newest file in outputDir
+
+      // Fallback: newest media file in effectiveDir only (never picks ZIPs etc.)
       try {
-        const files = fs.readdirSync(outputDir)
-          .map(f => ({ f, t: fs.statSync(path.join(outputDir, f)).mtimeMs }))
+        const files = fs.readdirSync(effectiveDir)
+          .filter(f => videoExts.has(path.extname(f).toLowerCase()))
+          .map(f => ({ f, t: fs.statSync(path.join(effectiveDir, f)).mtimeMs }))
           .sort((a, b) => b.t - a.t)
-        if (files.length) { resolve(path.join(outputDir, files[0].f)); return }
+        if (files.length) { resolve(path.join(effectiveDir, files[0].f)); return }
       } catch {}
+
       reject(new Error('Could not locate downloaded file'))
     })
   })
@@ -179,16 +201,25 @@ ipcMain.handle('upload', async (event, { filePath, apiKey }) => {
     event.sender.send('up-progress', pct)
   })
 
-  form.append('file', stream, { filename: path.basename(filePath) })
+  // knownLength lets form-data set a correct Content-Length, which some APIs require
+  form.append('file', stream, { filename: path.basename(filePath), knownLength: total })
 
   const response = await axios.post(endpoint, form, {
     headers: { ...form.getHeaders(), Authorization: apiKey },
     maxContentLength: Infinity,
     maxBodyLength: Infinity,
     timeout: 0,
+    validateStatus: null, // let us handle status ourselves for better error messages
   })
 
   event.sender.send('up-progress', 100)
+
+  if (response.status < 200 || response.status >= 300) {
+    const body = typeof response.data === 'object'
+      ? JSON.stringify(response.data)
+      : String(response.data)
+    throw new Error(`FiveManage returned ${response.status}: ${body}`)
+  }
 
   const data = response.data
   return data?.url || data?.link || data?.data?.url || JSON.stringify(data)
