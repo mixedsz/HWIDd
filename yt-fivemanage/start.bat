@@ -1,0 +1,6 @@
+@echo off
+cd /d "%~dp0"
+echo Installing dependencies (first run only)...
+call npm install
+echo Starting YT FiveManage...
+call npm start

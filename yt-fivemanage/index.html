@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+  <title>YT → FiveManage</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ── Title bar ──────────────────────────────────────────────────────────── -->
+  <div class="titlebar" id="titlebar">
+    <div class="titlebar-left">
+      <span class="titlebar-icon">▶</span>
+      <span class="titlebar-title">YT <span class="dim">→</span> FiveManage</span>
+    </div>
+    <div class="titlebar-controls">
+      <button class="wb wb-min" id="btn-min" title="Minimise">&#xE921;</button>
+      <button class="wb wb-max" id="btn-max" title="Maximise">&#xE922;</button>
+      <button class="wb wb-cls" id="btn-cls" title="Close">&#xE8BB;</button>
+    </div>
+  </div>
+
+  <!-- ── Main layout ────────────────────────────────────────────────────────── -->
+  <div class="layout">
+
+    <!-- ── Left panel ───────────────────────────────────────────────────────── -->
+    <div class="panel left-panel">
+
+      <!-- API key -->
+      <section class="card" id="card-api">
+        <div class="card-header">
+          <span class="badge" style="background:#5865F2">API</span>
+          <span class="card-title">FiveManage API Key</span>
+          <a class="card-hint" href="#" id="link-fivemanage">Get key ↗</a>
+        </div>
+        <div class="input-row">
+          <input id="api-key" type="password" class="input"
+                 placeholder="Paste your API key here…" autocomplete="off" />
+          <button class="icon-btn" id="toggle-key" title="Show / Hide">
+            <svg viewBox="0 0 24 24"><path d="M12 5C7 5 2.73 8.11 1 12c1.73 3.89 6 7 11 7s9.27-3.11 11-7c-1.73-3.89-6-7-11-7zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
+          </button>
+        </div>
+        <label class="checkbox-row">
+          <input type="checkbox" id="remember-key" />
+          <span class="checkmark"></span>
+          <span>Remember key</span>
+        </label>
+      </section>
+
+      <!-- URL -->
+      <section class="card" id="card-url">
+        <div class="card-header">
+          <span class="badge" style="background:#FF0000">YT</span>
+          <span class="card-title">YouTube URL</span>
+        </div>
+        <div class="input-row">
+          <input id="yt-url" type="url" class="input"
+                 placeholder="https://www.youtube.com/watch?v=…" />
+          <button class="icon-btn danger" id="clear-url" title="Clear">
+            <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- Options -->
+      <section class="card">
+        <div class="card-header">
+          <span class="badge" style="background:#2d2d3d; border:1px solid #5865F2">⚙</span>
+          <span class="card-title">Options</span>
+        </div>
+
+        <div class="opts-grid">
+          <div class="opt-group">
+            <label class="opt-label">Quality</label>
+            <select id="quality" class="select">
+              <option>4K (2160p)</option>
+              <option selected>1080p</option>
+              <option>720p</option>
+              <option>480p</option>
+              <option>360p</option>
+              <option>Audio Only</option>
+            </select>
+          </div>
+          <div class="opt-group">
+            <label class="opt-label">Save to</label>
+            <div class="dir-row">
+              <span class="dir-label" id="dir-label" title="">~/Downloads</span>
+              <button class="small-btn" id="browse-dir">Browse</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <label class="checkbox-row">
+          <input type="checkbox" id="upload-only" />
+          <span class="checkmark"></span>
+          <span>Upload an existing file instead</span>
+        </label>
+        <div class="upload-only-row" id="upload-only-row" style="display:none">
+          <button class="small-btn" id="pick-file">Pick file…</button>
+          <span class="file-name" id="picked-file-label">No file selected</span>
+        </div>
+      </section>
+
+      <!-- Go button -->
+      <button class="go-btn" id="go-btn">
+        <svg viewBox="0 0 24 24" class="go-icon"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        Download &amp; Upload to FiveManage
+      </button>
+      <button class="cancel-btn" id="cancel-btn" disabled>Cancel</button>
+
+      <!-- Progress -->
+      <div class="progress-section">
+        <div class="progress-row">
+          <span class="progress-label">Download</span>
+          <div class="progress-track"><div class="progress-fill" id="dl-fill"></div></div>
+          <span class="progress-pct" id="dl-pct">0%</span>
+        </div>
+        <div class="progress-row">
+          <span class="progress-label">Upload</span>
+          <div class="progress-track"><div class="progress-fill upload" id="up-fill"></div></div>
+          <span class="progress-pct" id="up-pct">0%</span>
+        </div>
+      </div>
+
+    </div><!-- /left-panel -->
+
+    <!-- ── Right panel (log) ─────────────────────────────────────────────────── -->
+    <div class="panel right-panel">
+      <div class="log-header">
+        <span class="card-title">Activity Log</span>
+        <button class="small-btn" id="clear-log">Clear</button>
+      </div>
+      <div class="log-box" id="log-box"></div>
+    </div>
+
+  </div><!-- /layout -->
+
+  <!-- ── Result toast ────────────────────────────────────────────────────────── -->
+  <div class="toast" id="toast" style="display:none">
+    <div class="toast-icon">✅</div>
+    <div class="toast-body">
+      <div class="toast-title">Upload complete!</div>
+      <a class="toast-url" id="toast-url" href="#"></a>
+    </div>
+    <button class="toast-copy" id="toast-copy">Copy URL</button>
+    <button class="toast-close" id="toast-close">✕</button>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
