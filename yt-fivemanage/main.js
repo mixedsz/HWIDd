@@ -1,11 +1,12 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron')
-const path   = require('path')
-const fs     = require('fs')
-const os     = require('os')
-const { spawn } = require('child_process')
+const path       = require('path')
+const fs         = require('fs')
+const os         = require('os')
+const { spawn }  = require('child_process')
 const FormData   = require('form-data')
 const axios      = require('axios')
 const YTDlpWrap  = require('yt-dlp-wrap').default
+const ffmpegPath = require('ffmpeg-static')
 
 const CONFIG_PATH = path.join(os.homedir(), '.ytfivemanage.json')
 
@@ -105,9 +106,10 @@ ipcMain.handle('download', (event, { url, quality, outputDir, ytdlpPath }) => {
     const args = [
       '--format',              fmt,
       '--merge-output-format', 'mp4',
+      '--ffmpeg-location',     ffmpegPath,   // bundled ffmpeg — merges video+audio into one MP4
       '--output',              outTemplate,
       '--no-playlist',
-      '--print',               'after_move:filepath',  // bare absolute path, no [] prefix
+      '--print',               'after_move:filepath',
       '--newline',
       url,
     ]
