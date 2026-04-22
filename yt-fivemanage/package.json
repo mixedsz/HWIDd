@@ -1,0 +1,33 @@
+{
+  "name": "yt-fivemanage",
+  "version": "1.0.0",
+  "description": "Download from YouTube and upload to FiveManage",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "form-data": "^4.0.0",
+    "yt-dlp-wrap": "^2.3.12"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.yt-fivemanage.app",
+    "productName": "YT → FiveManage",
+    "icon": "assets/icon.png",
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    },
+    "mac": {
+      "target": "dmg"
+    }
+  }
+}
